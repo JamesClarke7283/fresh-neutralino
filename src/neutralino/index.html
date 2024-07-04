@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neutralino Deno Fresh</title>
+</head>
+<body>
+    <div id="root">
+        <h1>Welcome to Neutralino</h1>
+        <button id="loadFreshApp">Load Fresh App</button>
+    </div>
+    <script src="/js/neutralino.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        function loadFreshApp() {
+            console.log("Attempting to load Fresh app");
+            fetch('http://localhost:8000', { 
+                mode: 'cors',
+                credentials: 'include'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                console.log("Fresh app HTML received");
+                const parser = new DOMParser();
+                const freshDoc = parser.parseFromString(html, 'text/html');
+                
+                // Replace the entire <head> content
+                document.head.innerHTML = freshDoc.head.innerHTML;
+                
+                // Replace the content of the root div
+                const root = document.getElementById('root');
+                if (root) {
+                    root.innerHTML = freshDoc.body.innerHTML;
+                } else {
+                    console.error('Root element not found');
+                    return;
+                }
+
+                // Execute scripts
+                const scripts = Array.from(freshDoc.scripts);
+                scripts.forEach(script => {
+                    if (script.src) {
+                        const newScript = document.createElement('script');
+                        newScript.src = new URL(script.src, 'http://localhost:8000').href;
+                        document.body.appendChild(newScript);
+                    } else {
+                        eval(script.textContent);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error loading Deno Fresh app:', error);
+                const root = document.getElementById('root');
+                if (root) {
+                    root.innerHTML = 'Error loading app. Please try again.';
+                }
+            });
+        }
+
+        // Wait for Neutralino to initialize before setting up the button
+        Neutralino.init();
+        Neutralino.events.on("windowClose", () => {
+            Neutralino.app.exit();
+        });
+        
+        document.getElementById('loadFreshApp').addEventListener('click', loadFreshApp);
+    </script>
+</body>
+</html>
